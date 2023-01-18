@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-RED='\033[0;31m'
-BLANK='\033[0m'
 CURSOR_TOKEN='\033[0;33m*\033[0m'
 NETWORK_ADDR_TOKEN='\033[0;37m(network address)\033[0m'
 BROADCAST_ADDR_TOKEN='\033[0;37m(broadcast address)\033[0m'
