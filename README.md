@@ -4,16 +4,14 @@ Print addresses in CIDR range.
 
 ## Quickstart
 
-Download the [subnet](https://github.com/eetami/subnet/releases/latest) shell script
-to your `~/.local/bin` directory and run it once to generate man page. This will also
-install files related to [simpleargs](https://github.com/laurivan/simpleargs) under
-your home directory in `~/.simpleargs.d/`.
+Download the [subnet](https://github.com/eetami/subnet/releases/latest) shell
+script to your `~/.local/bin` directory. This will also install files related to
+[simpleargs](https://github.com/laurivan/simpleargs) under your home directory in `~/.simpleargs.d/`.
 
 ```bash
 SUBNET_VERSION='v0.2.1'
 wget -O ~/.local/bin/subnet https://github.com/eetami/subnet/releases/download/${SUBNET_VERSION}/subnet
 subnet -h
-man subnet
 ```
 
 ## Examples
