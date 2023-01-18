@@ -10,7 +10,7 @@ install files related to [simpleargs](https://github.com/laurivan/simpleargs) un
 your home directory in `~/.simpleargs.d/`.
 
 ```bash
-SUBNET_VERSION='v0.1.0'
+SUBNET_VERSION='v0.2.0'
 wget -O ~/.local/bin/subnet https://github.com/eetami/subnet/releases/download/${SUBNET_VERSION}/subnet
 subnet -h
 man subnet
