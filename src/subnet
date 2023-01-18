@@ -5,6 +5,19 @@ NETWORK_ADDR_TOKEN='\033[0;37m(network address)\033[0m'
 BROADCAST_ADDR_TOKEN='\033[0;37m(broadcast address)\033[0m'
 SCRIPT=$(basename $0)
 
+if [ ! -v SIMPLEARGS ] || [ ! -r "$SIMPLEARGS" ]; then
+  SIMPLEARGS_DIR="${HOME}/.simpleargs.d"
+  SIMPLEARGS="${SIMPLEARGS_DIR}/simpleargs"
+  if [ ! -r $SIMPLEARGS ]; then
+    [ -e SIMPLEARGS ] && { echo "ERROR: File exists $SIMPLEARGS but is not readable!" >&2; exit 1; }
+    [ ! -d $SIMPLEARGS_DIR ] && mkdir $SIMPLEARGS_DIR
+    SIMPLEARGS_VERSION='v0.2.0'
+    SIMPLEARGS_URL="https://github.com/laurivan/simpleargs/releases/download/${SIMPLEARGS_VERSION}/simpleargs-${SIMPLEARGS_VERSION}"
+    wget -O "$SIMPLEARGS" "$SIMPLEARGS_URL" &>/dev/null || { echo "Couldn't download $SIMPLEARGS_URL" >&2; exit 1; }
+  fi
+  export SIMPLEARGS
+fi
+
 ipv4_address_int() {
   local ip_address="$1"
   local -i int_address=0
