@@ -81,6 +81,50 @@ ints_to_ipv6() {
     $(( ints[1] >> 32 & 0xffff )) \
     $(( ints[1] >> 16 & 0xffff )) \
     $(( ints[1] & 0xffff ))
+  return 0
+}
+
+ints_to_canonical_ipv6() {
+  local -a ints=("$@")
+  local -a quartets=(
+    $(( ints[0] >> 48 & 0xffff ))
+    $(( ints[0] >> 32 & 0xffff ))
+    $(( ints[0] >> 16 & 0xffff ))
+    $(( ints[0] & 0xffff ))
+    $(( ints[1] >> 48 & 0xffff ))
+    $(( ints[1] >> 32 & 0xffff ))
+    $(( ints[1] >> 16 & 0xffff ))
+    $(( ints[1] & 0xffff ))
+  )
+
+  local -i start_idx=-1
+  local -i end_idx=-1
+
+  for (( i = 0; i < ${#quartets[@]}; i++ )); do
+    if (( ${quartets[i]} == 0 )); then
+      (( curr_start_idx = i ))
+      for (( j = i + 1; j < ${#quartets[@]}; j++ )); do
+        if (( ${quartets[j]} == 0 )); then
+          (( curr_end_idx = j ))
+        else
+          break
+        fi
+      done
+      if (( curr_end_idx - curr_start_idx > end_idx - start_idx )); then
+        (( start_idx = curr_start_idx, end_idx = curr_end_idx ))
+      fi
+      (( i = j ))
+    fi
+  done
+
+  for (( i = 0; i < 8; i++ )); do
+    (( i == start_idx )) && printf ':'
+    (( i == end_idx )) && printf ':'
+    (( start_idx <= i && i <= end_idx )) && continue
+    printf '%x' ${quartets[i]}
+    (( i < 7 && start_idx != i + 1 )) && printf ':'
+  done
+  return 0
 }
 
 sa_short_description="Print all addresses from given IP address and network prefix"
@@ -98,6 +142,9 @@ network block in normal form (dead:0000:0000:0000:0000:0000:0000:0000 and dead:0
 # -------------------------------- simpleargs --------------------------------
 . "${SIMPLEARGS}" || { echo "Error loading '${SIMPLEARGS}'" >&2; exit 1; }
 sa_parse "$0" \
+  -c/--canonical \
+  @doc="Print addresses in canonical form instead." \
+  @doc="Has no effect when --ipv is set to '4'." \
   -d/--delim @default='\n' @@egrep '^.+$' \
   @doc="Delimiter between addresses." \
   @doc="Backslash-escaped characters are expanded with printf %b specifier." \
@@ -184,15 +231,15 @@ elif (( ip_version == 6 )); then
   )
 
   if (( ip_prefix < 122 )); then
-    ints_to_ipv6 "${network_addr_ints[@]}"
+    $c && ints_to_canonical_ipv6 "${network_addr_ints[@]}" || ints_to_ipv6 "${network_addr_ints[@]}"
     printf '%b' "$d"
-    ints_to_ipv6 "${broadcast_addr_ints[@]}"
+    $c && ints_to_canonical_ipv6 "${broadcast_addr_ints[@]}" || ints_to_ipv6 "${broadcast_addr_ints[@]}"
     echo
     exit
   fi
 
   for (( ip = network_addr_ints[1]; ip <= broadcast_addr_ints[1]; ip++ )); do
-    ints_to_ipv6 ${ip_ints[0]} $ip
+    $c && ints_to_canonical_ipv6 ${ip_ints[0]} $ip || ints_to_ipv6 ${ip_ints[0]} $ip
     ! $q && (( ip == ip_ints[1] )) && printf " $CURSOR_TOKEN"
     (( ip < broadcast_addr_ints[1] )) && printf "%b" "$d"
   done
