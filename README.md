@@ -22,8 +22,8 @@ man subnet
 
 ```console
 $ subnet 192.168.201.1/30
-192.168.201.0 * (network address)
-192.168.201.1
+192.168.201.0 (network address)
+192.168.201.1 *
 192.168.201.2
 192.168.201.3 (broadcast address)
 ```
