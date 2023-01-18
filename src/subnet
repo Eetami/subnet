@@ -8,8 +8,7 @@ SCRIPT=$(basename $0)
 if [ ! -v SIMPLEARGS ] || [ ! -r "$SIMPLEARGS" ]; then
   SIMPLEARGS_DIR="${HOME}/.simpleargs.d"
   SIMPLEARGS="${SIMPLEARGS_DIR}/simpleargs"
-  if [ ! -r $SIMPLEARGS ]; then
-    [ -e SIMPLEARGS ] && { echo "ERROR: File exists $SIMPLEARGS but is not readable!" >&2; exit 1; }
+  if [ ! -f $SIMPLEARGS ]; then
     [ ! -d $SIMPLEARGS_DIR ] && mkdir $SIMPLEARGS_DIR
     SIMPLEARGS_VERSION='v0.2.0'
     SIMPLEARGS_URL="https://github.com/laurivan/simpleargs/releases/download/${SIMPLEARGS_VERSION}/simpleargs-${SIMPLEARGS_VERSION}"
