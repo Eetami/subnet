@@ -1,0 +1,190 @@
+#!/usr/bin/env bash
+
+RED='\033[0;31m'
+BLANK='\033[0m'
+CURSOR_TOKEN='\033[0;33m*\033[0m'
+NETWORK_ADDR_TOKEN='\033[0;37m(network address)\033[0m'
+BROADCAST_ADDR_TOKEN='\033[0;37m(broadcast address)\033[0m'
+SCRIPT=$(basename $0)
+
+ipv4_address_int() {
+  local ip_address="$1"
+  local -i int_address=0
+
+  for i in ${ip_address//./ }; do
+    (( int_address <<= 8, int_address += 10#$i ))
+  done
+
+  echo $int_address
+}
+
+integer_to_ipv4() {
+  local -i ip_integer=$1
+
+  printf '%d.%d.%d.%d' \
+    $(( ip_integer >> 24 & 0xff )) \
+    $(( ip_integer >> 16 & 0xff )) \
+    $(( ip_integer >> 8 & 0xff )) \
+    $(( ip_integer & 0xff ))
+}
+
+ipv6_address_ints() {
+  local -a address_parts
+  local -a quartets=(0 0 0 0 0 0 0 0)
+
+  IFS=':' read -ra address_parts <<<"$1"
+  for i in "${!address_parts[@]}"; do
+    [ -z "${address_parts[i]}" ] && break
+    (( quartets[i] = 16#${address_parts[i]} ))
+  done
+
+  if (( ${#address_parts[@]} < 8 )); then
+    for (( i=${#address_parts[@]}-1, j=7; i>0; i--, j-- )); do
+      [ -z "${address_parts[i]}" ] && break
+      (( quartets[j] = 16#${address_parts[i]} ))
+    done
+  fi
+
+  echo $(( ( quartets[0] << 48 ) + ( quartets[1] << 32 ) + ( quartets[2] << 16 ) + quartets[3] )) \
+    $(( ( quartets[4] << 48 ) + ( quartets[5] << 32 ) + ( quartets[6] << 16 ) + quartets[7] ))
+}
+
+ipv6_mask_ints() {
+  local -i ip_prefix=$1
+
+  local -i shift_a=64-ip_prefix
+  local -i shift_b=128-ip_prefix
+
+  echo $(( shift_a < 0 ? -1 : shift_a < 64 ? -1 << shift_a : -1 << 63 << 1 )) \
+    $(( shift_b < 64 ? -1 << shift_b : -1 << 63 << 1 ))
+}
+
+ints_to_ipv6() {
+  local -a ints=("$@")
+
+  printf '%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x' \
+    $(( ints[0] >> 48 & 0xffff )) \
+    $(( ints[0] >> 32 & 0xffff )) \
+    $(( ints[0] >> 16 & 0xffff )) \
+    $(( ints[0] & 0xffff )) \
+    $(( ints[1] >> 48 & 0xffff )) \
+    $(( ints[1] >> 32 & 0xffff )) \
+    $(( ints[1] >> 16 & 0xffff )) \
+    $(( ints[1] & 0xffff ))
+}
+
+sa_short_description="Print all addresses from given IP address and network prefix"
+sa_long_description=(
+"Print individual IP addresses or range given an IP address and network prefix in CIDR notation."
+"The \fICIDR\fR must be either an IPv4 or IPv6 address with network prefix in CIDR notation."
+"If the network block is sufficiently large (more than 64 addresses) $SCRIPT will print only \
+the first and last address delimited by --delim. Otherwise $SCRIPT will print each usable and \
+unusable address in the block."
+"For example \`$SCRIPT 192.168.0.1/30\` will print all IPv4 addresses from 192.168.0.0 to 192.168.0.3. \
+Similarly \`$SCRIPT -v6 dead::beef/64\` will print only in the first and last address in dead::beec/64 \
+network block in canonical form (dead:0000:0000:0000:0000:0000:0000:0000 and dead:0000:0000:0000:ffff:ffff:ffff:ffff)."
+)
+
+# -------------------------------- simpleargs --------------------------------
+. "${SIMPLEARGS}" || { echo "Error loading '${SIMPLEARGS}'" >&2; exit 1; }
+sa_parse "$0" \
+  -d/--delim @default='\n' @@egrep '^.+$' \
+  @doc="Delimiter between addresses." \
+  @doc="Backslash-escaped characters are expanded with printf %b specifier." \
+  @doc="Default value is '\\\\n'." \
+  -l/--length \
+  @doc="Print only the length of the network block instead." \
+  @doc="For example with --ipv=4 and network prefix of 29 will print '$(( 2 ** (32 - 29) ))' (2^(32-29))." \
+  @doc="If --usable is set, it will be taken into account in the calculation." \
+  -q/--quiet \
+  @doc="Don't print additional details." \
+  -u/--usable \
+  @doc="Print usable addresses only." \
+  @doc="Has no effect when --ipv is set to '6'." \
+  -v/--ipv 4@default,6 @varname=ip_version \
+  @doc="Internet Protocol version." \
+  @doc="Valid values are @{v}, default value is '@{d}'." \
+  "<CIDR>" @@egrep '^[0-9a-f\.:]+/[0-9]{1,3}$' \
+  @doc="Network or IP address with network prefix in CIDR notation"
+sa_end_parse $?; sa_process "$@"; sa_end_process $?; eval "set -- ${sa_args}"
+# ----------------------------------------------------------------------------
+
+declare ip_address=${CIDR%/*}
+declare -i ip_prefix=10#${CIDR#*/}
+
+if (( ip_version == 4 )); then
+  (( ip_prefix < 0 || ip_prefix > 32 )) && {
+    echo "ERROR: Network prefix must be in range 0..32 !" >&2;
+    exit 1;
+  }
+  $l && {
+    $u && echo $(( 2 ** ( 32 - ip_prefix ) - 2 )) || echo $(( 2 ** ( 32 - ip_prefix ) ));
+    exit;
+  }
+
+  let -i ip_int=$(ipv4_address_int $ip_address)
+  let -i mask_int=$(( -1 << ( 32 - ip_prefix ) & 0xffffffff ))
+
+  let -i network_addr_int=$(( ip_int & mask_int ))
+  let -i broadcast_addr_int=$(( ip_int | ( ~ mask_int ) & 0xffffffff ))
+
+  if (( ip_prefix < 26 )); then
+    $u && integer_to_ipv4 $(( network_addr_int + 1 )) || integer_to_ipv4 $network_addr_int
+    ! $q && ! $u && printf " $NETWORK_ADDR_TOKEN"
+    printf '%b' "$d"
+    $u && integer_to_ipv4 $(( broadcast_addr_int - 1 )) || integer_to_ipv4 $broadcast_addr_int
+    ! $q && ! $u && printf " $BROADCAST_ADDR_TOKEN"
+    echo
+    exit
+  fi
+
+  for (( ip = network_addr_int; ip <= broadcast_addr_int; ip++ )); do
+    $u && (( ip_prefix < 31 )) && (( ip == network_addr_int || ip == broadcast_addr_int )) && continue
+    integer_to_ipv4 $ip
+    ! $q && {
+      (( ip == ip_int )) && printf " $CURSOR_TOKEN";
+      (( ip == network_addr_int )) && (( ip_prefix < 31 )) && printf " $NETWORK_ADDR_TOKEN";
+      (( ip == broadcast_addr_int )) && (( ip_prefix < 31 )) && printf " $BROADCAST_ADDR_TOKEN";
+    }
+    ! $u && (( ip < broadcast_addr_int )) && printf '%b' "$d";
+    $u && (( ip_prefix == 31 ? ip < broadcast_addr_int : ip < broadcast_addr_int - 1 )) && printf '%b' "$d";
+  done
+  echo
+elif (( ip_version == 6 )); then
+  (( ip_prefix < 0 || ip_prefix > 128 )) && {
+    echo "ERROR: Network prefix must be in range 0..128 !" >&2;
+    exit 1;
+  }
+  $l && {
+    bc <<<"2 ^ (128 - $ip_prefix)";
+    exit;
+  }
+
+  declare -a ip_ints=($(ipv6_address_ints $ip_address))
+  declare -a mask_ints=($(ipv6_mask_ints $ip_prefix))
+
+  declare -a network_addr_ints=(
+    $(( ip_ints[0] & mask_ints[0] ))
+    $(( ip_ints[1] & mask_ints[1] ))
+  )
+
+  declare -a broadcast_addr_ints=(
+    $(( ip_ints[0] | ( ~ mask_ints[0] ) ))
+    $(( ip_ints[1] | ( ~ mask_ints[1] ) ))
+  )
+
+  if (( ip_prefix < 122 )); then
+    ints_to_ipv6 "${network_addr_ints[@]}"
+    printf '%b' "$d"
+    ints_to_ipv6 "${broadcast_addr_ints[@]}"
+    echo
+    exit
+  fi
+
+  for (( ip = network_addr_ints[1]; ip <= broadcast_addr_ints[1]; ip++ )); do
+    ints_to_ipv6 ${ip_ints[0]} $ip
+    ! $q && (( ip == ip_ints[1] )) && printf " $CURSOR_TOKEN"
+    (( ip < broadcast_addr_ints[1] )) && printf "%b" "$d"
+  done
+  echo
+fi
