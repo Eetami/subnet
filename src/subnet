@@ -92,7 +92,7 @@ the first and last address delimited by --delim. Otherwise $SCRIPT will print ea
 unusable address in the block."
 "For example \`$SCRIPT 192.168.0.1/30\` will print all IPv4 addresses from 192.168.0.0 to 192.168.0.3. \
 Similarly \`$SCRIPT -v6 dead::beef/64\` will print only in the first and last address in dead::beec/64 \
-network block in canonical form (dead:0000:0000:0000:0000:0000:0000:0000 and dead:0000:0000:0000:ffff:ffff:ffff:ffff)."
+network block in normal form (dead:0000:0000:0000:0000:0000:0000:0000 and dead:0000:0000:0000:ffff:ffff:ffff:ffff)."
 )
 
 # -------------------------------- simpleargs --------------------------------
