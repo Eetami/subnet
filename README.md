@@ -8,7 +8,7 @@ Download the [subnet](https://github.com/eetami/subnet/releases/latest) shell
 script to your `~/.local/bin` directory.
 
 ```bash
-SUBNET_VERSION='v0.4.0'
+SUBNET_VERSION='v0.4.1'
 wget -O ~/.local/bin/subnet "https://github.com/eetami/subnet/releases/download/${SUBNET_VERSION}/subnet"
 subnet -h
 ```
