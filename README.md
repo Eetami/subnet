@@ -2,13 +2,18 @@
 
 Print addresses in CIDR range.
 
+- [Quickstart](#quickstart)
+- [Examples](#examples)
+- [Offline Use](#offline-use)
+- [Man Page](#man-page)
+
 ## Quickstart
 
 Download the [subnet](https://github.com/eetami/subnet/releases/latest) shell
 script to your `~/.local/bin` directory.
 
 ```bash
-SUBNET_VERSION='v0.4.1'
+SUBNET_VERSION='v0.4.2'
 wget -O ~/.local/bin/subnet "https://github.com/eetami/subnet/releases/download/${SUBNET_VERSION}/subnet"
 subnet -h
 ```
@@ -131,7 +136,7 @@ $ subnet -v6 -cmstandard ::ffff:c0a8:beef/126
 ::ffff:192.168.190.239 *
 ```
 
-## Offline use
+## Offline Use
 
 subnet requires [simpleargs](https://github.com/laurivan/simpleargs) argument parser for bash.
 If it is not present in user system, subnet will automatically download and install it (using
@@ -141,4 +146,20 @@ However if the target system does not have internet access, or access to GitHub 
 some reason, then manual installation is required.
 
 The simplest way is to copy the simpleargs-${version} script onto the target system and follow
-the [installation instructions](https://github.com/laurivan/simpleargs/blob/main/docs/installation.md).
+the [simpleargs installation instructions](https://github.com/laurivan/simpleargs/blob/main/docs/installation.md).
+
+## Man Page
+
+subnet automatically creates a man page on first invocation (thanks to
+[simpleargs](https://github.com/laurivan/simpleargs/blob/main/docs/automatic-documentation.md#automatic-man-page-generation)).
+However the man page is not accessible by default, but it can be accessed by
+modifying `PATH` environment variable appropriately.
+
+```bash
+export PATH=${PATH}:${HOME}/.simpleargs.d/bin
+man subnet
+```
+
+When you have a local installation of simpleargs &mdash; i.e. you have run the commands in
+[simpleargs installation instructions](https://github.com/laurivan/simpleargs/blob/main/docs/installation.md)
+manually &mdash; then `PATH` is automatically appended and you can already access subnet man page.
