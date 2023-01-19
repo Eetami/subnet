@@ -38,6 +38,29 @@ integer_to_ipv4() {
     $(( ip_integer & 0xff ))
 }
 
+integer_to_ipv4_mapped() {
+  local -i ip_integer=$1
+  local canonical=$2
+
+  $canonical &&
+    printf '::ffff:%s' $(integer_to_ipv4 $ip_integer) ||
+    printf '0000:0000:0000:0000:0000:ffff:%s' $(integer_to_ipv4 $ip_integer)
+}
+
+print_ipv4() {
+  local -i ip_integer=$1
+  local mapped=$2
+  local canonical=$3
+
+  if [ "$mapped" = "false" ]; then
+    integer_to_ipv4 $ip_integer
+  elif [ "$mapped" = "" ] || [ "$mapped" = "default" ]; then
+    integer_to_ipv4_mapped $ip_integer $canonical
+  elif [ "$mapped" = "standard" ]; then
+    ints_to_ipv6 0 $(( (0xffff << 32) + ip_integer )) "$canonical"
+  fi
+}
+
 ipv6_address_ints() {
   local -a address_parts
   local -a quartets=(0 0 0 0 0 0 0 0)
@@ -70,41 +93,42 @@ ipv6_mask_ints() {
 }
 
 ints_to_ipv6() {
-  local -a ints=("$@")
+  local -i first_half=$1
+  local -i second_half=$2
+  local canonical=$3
 
-  printf '%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x' \
-    $(( ints[0] >> 48 & 0xffff )) \
-    $(( ints[0] >> 32 & 0xffff )) \
-    $(( ints[0] >> 16 & 0xffff )) \
-    $(( ints[0] & 0xffff )) \
-    $(( ints[1] >> 48 & 0xffff )) \
-    $(( ints[1] >> 32 & 0xffff )) \
-    $(( ints[1] >> 16 & 0xffff )) \
-    $(( ints[1] & 0xffff ))
-  return 0
-}
+  ! $canonical && {
+    printf '%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x' \
+      $(( first_half >> 48 & 0xffff )) \
+      $(( first_half >> 32 & 0xffff )) \
+      $(( first_half >> 16 & 0xffff )) \
+      $(( first_half & 0xffff )) \
+      $(( second_half >> 48 & 0xffff )) \
+      $(( second_half >> 32 & 0xffff )) \
+      $(( second_half >> 16 & 0xffff )) \
+      $(( second_half & 0xffff ));
+    return 0;
+  }
 
-ints_to_canonical_ipv6() {
-  local -a ints=("$@")
   local -a quartets=(
-    $(( ints[0] >> 48 & 0xffff ))
-    $(( ints[0] >> 32 & 0xffff ))
-    $(( ints[0] >> 16 & 0xffff ))
-    $(( ints[0] & 0xffff ))
-    $(( ints[1] >> 48 & 0xffff ))
-    $(( ints[1] >> 32 & 0xffff ))
-    $(( ints[1] >> 16 & 0xffff ))
-    $(( ints[1] & 0xffff ))
+    $(( first_half >> 48 & 0xffff ))
+    $(( first_half >> 32 & 0xffff ))
+    $(( first_half >> 16 & 0xffff ))
+    $(( first_half & 0xffff ))
+    $(( second_half >> 48 & 0xffff ))
+    $(( second_half >> 32 & 0xffff ))
+    $(( second_half >> 16 & 0xffff ))
+    $(( second_half & 0xffff ))
   )
 
   local -i start_idx=-1
   local -i end_idx=-1
 
   for (( i = 0; i < ${#quartets[@]}; i++ )); do
-    if (( ${quartets[i]} == 0 )); then
+    if (( quartets[i] == 0 )); then
       (( curr_start_idx = i ))
       for (( j = i + 1; j < ${#quartets[@]}; j++ )); do
-        if (( ${quartets[j]} == 0 )); then
+        if (( quartets[j] == 0 )); then
           (( curr_end_idx = j ))
         else
           break
@@ -127,6 +151,21 @@ ints_to_canonical_ipv6() {
   return 0
 }
 
+print_ipv6() {
+  local -i first_half=$1
+  local -i second_half=$2
+  local mapped=$3
+  local canonical=$4
+
+  if [ "$mapped" = "false" ]; then
+    ints_to_ipv6 $first_half $second_half "$canonical"
+  elif [ "$mapped" = "" ] || [ "$mapped" = "default" ]; then
+    integer_to_ipv4 $(( second_half & 0xffffffff ))
+  elif [ "$mapped" = "standard" ]; then
+    integer_to_ipv4_mapped $(( second_half & 0xffffffff )) "$canonical"
+  fi
+}
+
 sa_short_description="Print all addresses from given IP address and network prefix"
 sa_long_description=(
 "Print individual IP addresses or range given an IP address and network prefix in CIDR notation."
@@ -144,15 +183,22 @@ network block in normal form (dead:0000:0000:0000:0000:0000:0000:0000 and dead:0
 sa_parse "$0" \
   -c/--canonical \
   @doc="Print addresses in canonical form instead." \
-  @doc="Has no effect when --ipv is set to '4'." \
   -d/--delim @default='\n' @@egrep '^.+$' \
-  @doc="Delimiter between addresses." \
-  @doc="Backslash-escaped characters are expanded with printf %b specifier." \
+  @doc="Delimiter between addresses. Backslash-escaped characters are expanded with \
+printf %b specifier." \
   @doc="Default value is '\\\\n'." \
   -l/--length \
   @doc="Print only the length of the network block instead." \
-  @doc="For example with --ipv=4 and network prefix of 29 will print '$(( 2 ** (32 - 29) ))' (2^(32-29))." \
-  @doc="If --usable is set, it will be taken into account in the calculation." \
+  @doc="For example with --ipv=4 and network prefix of 29 will print \
+'$(( 2 ** (32 - 29) ))' (2^(32-29)). If --usable is set, it will be \
+taken into account in the calculation." \
+  -m/--mapped false@default,default,standard @optionalvalue \
+  @doc="When --ipv is set to '4' prints the addresses as IPv4-mapped IPv6 addresses. \
+When --ipv is set to '6' and the input address is IPv4-mapped IPv6 address prints the \
+IPv4 addresses they were mapped from. In such a case network prefix must be greater than \
+or equal to 96." \
+  @doc="Takes an optional format argument. Valid values are @{v}. By default will print \
+in default format" \
   -q/--quiet \
   @doc="Don't print additional details." \
   -u/--usable \
@@ -162,7 +208,7 @@ sa_parse "$0" \
   @doc="Internet Protocol version." \
   @doc="Valid values are @{v}, default value is '@{d}'." \
   "<CIDR>" @@egrep '^[0-9a-f\.:]+/[0-9]{1,3}$' \
-  @doc="Network or IP address with network prefix in CIDR notation"
+  @doc="Network or host IP address with network prefix in CIDR notation"
 sa_end_parse $?; sa_process "$@"; sa_end_process $?; eval "set -- ${sa_args}"
 # ----------------------------------------------------------------------------
 
@@ -186,10 +232,13 @@ if (( ip_version == 4 )); then
   let -i broadcast_addr_int=$(( ip_int | ( ~ mask_int ) & 0xffffffff ))
 
   if (( ip_prefix < 26 )); then
-    $u && integer_to_ipv4 $(( network_addr_int + 1 )) || integer_to_ipv4 $network_addr_int
+    ! $u &&
+      let -i ip_start=network_addr_int ip_end=broadcast_addr_int ||
+      let -i ip_start=network_addr_int+1 ip_end=broadcast_addr_int+1
+    print_ipv4 "$ip_start" "$m" "$c"
     ! $q && ! $u && printf " $NETWORK_ADDR_TOKEN"
     printf '%b' "$d"
-    $u && integer_to_ipv4 $(( broadcast_addr_int - 1 )) || integer_to_ipv4 $broadcast_addr_int
+    print_ipv4 "$ip_end" "$m" "$c"
     ! $q && ! $u && printf " $BROADCAST_ADDR_TOKEN"
     echo
     exit
@@ -197,7 +246,7 @@ if (( ip_version == 4 )); then
 
   for (( ip = network_addr_int; ip <= broadcast_addr_int; ip++ )); do
     $u && (( ip_prefix < 31 )) && (( ip == network_addr_int || ip == broadcast_addr_int )) && continue
-    integer_to_ipv4 $ip
+    print_ipv4 "$ip" "$m" "$c"
     ! $q && {
       (( ip == ip_int )) && printf " $CURSOR_TOKEN";
       (( ip == network_addr_int )) && (( ip_prefix < 31 )) && printf " $NETWORK_ADDR_TOKEN";
@@ -220,6 +269,11 @@ elif (( ip_version == 6 )); then
   declare -a ip_ints=($(ipv6_address_ints $ip_address))
   declare -a mask_ints=($(ipv6_mask_ints $ip_prefix))
 
+  [ "$m" != "false" ] && {
+    (( ip_ints[0] | 0 != 0 || ip_ints[1] >> 32 != 0xffff )) && echo "Error: $ip_address is not IPv4-mapped IPv6 address!" >&2 && exit 1;
+    (( ip_prefix < 96 )) && echo "Error: IP prefix must be greater than or equal to 96" >&2 && exit 1;
+  }
+
   declare -a network_addr_ints=(
     $(( ip_ints[0] & mask_ints[0] ))
     $(( ip_ints[1] & mask_ints[1] ))
@@ -231,15 +285,15 @@ elif (( ip_version == 6 )); then
   )
 
   if (( ip_prefix < 122 )); then
-    $c && ints_to_canonical_ipv6 "${network_addr_ints[@]}" || ints_to_ipv6 "${network_addr_ints[@]}"
+    print_ipv6 "${network_addr_ints[@]}" "$m" "$c"
     printf '%b' "$d"
-    $c && ints_to_canonical_ipv6 "${broadcast_addr_ints[@]}" || ints_to_ipv6 "${broadcast_addr_ints[@]}"
+    print_ipv6 "${broadcast_addr_ints[@]}" "$m" "$c"
     echo
     exit
   fi
 
   for (( ip = network_addr_ints[1]; ip <= broadcast_addr_ints[1]; ip++ )); do
-    $c && ints_to_canonical_ipv6 ${ip_ints[0]} $ip || ints_to_ipv6 ${ip_ints[0]} $ip
+    print_ipv6 "${ip_ints[0]}" $ip "$m" "$c"
     ! $q && (( ip == ip_ints[1] )) && printf " $CURSOR_TOKEN"
     (( ip < broadcast_addr_ints[1] )) && printf "%b" "$d"
   done
