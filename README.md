@@ -59,3 +59,13 @@ $ subnet -v6 dead::beef/64
 dead:0000:0000:0000:0000:0000:0000:0000
 dead:0000:0000:0000:ffff:ffff:ffff:ffff
 ```
+
+### Print all addresses in `dead::beef/126` IPv6 network in canonical form
+
+```console
+$ subnet -cv6 dead::beef/126
+dead::beec
+dead::beed
+dead::beee
+dead::beef *
+```
