@@ -12,7 +12,10 @@ if [ ! -v SIMPLEARGS ] || [ ! -r "$SIMPLEARGS" ]; then
     [ ! -d $SIMPLEARGS_DIR ] && mkdir $SIMPLEARGS_DIR
     SIMPLEARGS_VERSION='v0.2.0'
     SIMPLEARGS_URL="https://github.com/laurivan/simpleargs/releases/download/${SIMPLEARGS_VERSION}/simpleargs-${SIMPLEARGS_VERSION}"
-    wget -O "$SIMPLEARGS" "$SIMPLEARGS_URL" &>/dev/null || { echo "Couldn't download $SIMPLEARGS_URL" >&2; exit 1; }
+    which wget &>/dev/null &&
+      command=('wget' '-O' "$SIMPLEARGS" "$SIMPLEARGS_URL") ||
+      command=('curl' '-o' "$SIMPLEARGS" "$SIMPLEARGS_URL")
+    ${command[@]} &>/dev/null || { echo "Couldn't download $SIMPLEARGS_URL" >&2; exit 1; }
   fi
   export SIMPLEARGS
 fi
