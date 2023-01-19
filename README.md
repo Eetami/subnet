@@ -70,7 +70,7 @@ $ subnet -m 192.168.201.1/30
 
 The `-m` option can also be used in combination with other outputting options, such as `-c`, `-q` and `-u`.
 
-### Print only usable addresses from above network as canonical IPv4-mapped IPv6 addresses in standard canonical IPv6 format without additional details
+### Print only usable addresses from above network as IPv4-mapped IPv6 addresses in standard canonical IPv6 format without additional details
 
 ```console
 $ subnet -cqumstandard 192.168.201.1/30
