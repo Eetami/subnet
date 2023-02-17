@@ -15,6 +15,7 @@ script to your `~/.local/bin` directory.
 ```bash
 SUBNET_VERSION='v0.4.2'
 wget -O ~/.local/bin/subnet "https://github.com/eetami/subnet/releases/download/${SUBNET_VERSION}/subnet"
+chmod +x ~/.local/bin/subnet
 subnet -h
 ```
 
