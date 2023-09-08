@@ -237,7 +237,7 @@ if (( ip_version == 4 )); then
   if (( ip_prefix < 26 )); then
     ! $u &&
       let -i ip_start=network_addr_int ip_end=broadcast_addr_int ||
-      let -i ip_start=network_addr_int+1 ip_end=broadcast_addr_int+1
+      let -i ip_start=network_addr_int+1 ip_end=broadcast_addr_int-1
     print_ipv4 "$ip_start" "$m" "$c"
     ! $q && ! $u && printf " $NETWORK_ADDR_TOKEN"
     printf '%b' "$d"
