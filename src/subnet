@@ -239,10 +239,20 @@ if (( ip_version == 4 )); then
       let -i ip_start=network_addr_int ip_end=broadcast_addr_int ||
       let -i ip_start=network_addr_int+1 ip_end=broadcast_addr_int-1
     print_ipv4 "$ip_start" "$m" "$c"
-    ! $q && ! $u && printf " $NETWORK_ADDR_TOKEN"
+    ! $q && {
+      (( ip_start == ip_int )) && printf " $CURSOR_TOKEN";
+      ! $u && {
+        printf " $NETWORK_ADDR_TOKEN";
+      };
+    }
     printf '%b' "$d"
     print_ipv4 "$ip_end" "$m" "$c"
-    ! $q && ! $u && printf " $BROADCAST_ADDR_TOKEN"
+    ! $q && {
+      (( ip_end == ip_int )) && printf " $CURSOR_TOKEN";
+      ! $u && {
+        printf " $BROADCAST_ADDR_TOKEN";
+      };
+    }
     echo
     exit
   fi
@@ -289,8 +299,10 @@ elif (( ip_version == 6 )); then
 
   if (( ip_prefix < 122 )); then
     print_ipv6 "${network_addr_ints[@]}" "$m" "$c"
+    ! $q && (( ip_ints[0] == network_addr_ints[0] && ip_ints[1] == network_addr_ints[1] )) && printf " $CURSOR_TOKEN"
     printf '%b' "$d"
     print_ipv6 "${broadcast_addr_ints[@]}" "$m" "$c"
+    ! $q && (( ip_ints[0] == broadcast_addr_ints[0] && ip_ints[1] == broadcast_addr_ints[1] )) && printf " $CURSOR_TOKEN"
     echo
     exit
   fi
