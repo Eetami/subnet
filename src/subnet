@@ -130,6 +130,7 @@ ints_to_ipv6() {
   for (( i = 0; i < ${#quartets[@]}; i++ )); do
     if (( quartets[i] == 0 )); then
       (( curr_start_idx = i ))
+      (( curr_end_idx = i))
       for (( j = i + 1; j < ${#quartets[@]}; j++ )); do
         if (( quartets[j] == 0 )); then
           (( curr_end_idx = j ))
