@@ -25,7 +25,7 @@ integer_to_ipv4() {
     $(( ip_integer & 0xff ))
 }
 
-while getopts "a:l:m:" opt; do
+while getopts "a:l:p:" opt; do
   case ${opt} in
     a)
       ip_int=$(ipv4_address_int $OPTARG)
@@ -33,7 +33,7 @@ while getopts "a:l:m:" opt; do
     l)
       length=$OPTARG
       ;;
-    m)
+    p)
       prefix_len=$OPTARG
       ;;
     ?)
