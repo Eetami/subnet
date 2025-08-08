@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+declare -i length=10
+declare -i ip_int=0
+declare -i prefix_len=30
+
+ipv4_address_int() {
+  local ip_address="$1"
+  local -i int_address=0
+
+  for i in ${ip_address//./ }; do
+    (( int_address <<= 8, int_address += 10#$i ))
+  done
+
+  echo $int_address
+}
+
+integer_to_ipv4() {
+  local -i ip_integer=$1
+
+  printf '%d.%d.%d.%d' \
+    $(( ip_integer >> 24 & 0xff )) \
+    $(( ip_integer >> 16 & 0xff )) \
+    $(( ip_integer >> 8 & 0xff )) \
+    $(( ip_integer & 0xff ))
+}
+
+while getopts "a:l:m:" opt; do
+  case ${opt} in
+    a)
+      ip_int=$(ipv4_address_int $OPTARG)
+      ;;
+    l)
+      length=$OPTARG
+      ;;
+    m)
+      prefix_len=$OPTARG
+      ;;
+    ?)
+      exit 1
+      ;;
+  esac
+done
+
+let -i mask_int=$(( -1 << ( 32 - prefix_len ) & 0xffffffff ))
+ip_int=$(( ip_int & mask_int ))
+
+for ((i = 0; i < length; i++)); do
+  ip=$(integer_to_ipv4 $ip_int)
+  printf '%s/%d\n' $ip $prefix_len
+  (( ip_int += 2 ** (32 - prefix_len) ))
+done
